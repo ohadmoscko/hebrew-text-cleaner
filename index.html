@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מנקה טקסט עברי</title>
+<meta name="description" content="ניקוי טקסט עברי שהועתק מ-PDF, וואטסאפ או מודל שפה — ניקוד, תווים בלתי־נראים, מקפים וגרשיים. הכל רץ בדפדפן, שום דבר לא נשלח לשרת.">
+<style>
+  :root{
+    --bg:#fbfbfa; --fg:#1a1a1a; --muted:#6b6b6b; --line:#d8d6d2;
+    --card:#fff; --accent:#1a1a1a; --ok:#16702f; --hl:#fff3c4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#16161a; --fg:#ececec; --muted:#9a9a9a; --line:#33333a;
+           --card:#1e1e24; --accent:#ececec; --ok:#63c98a; --hl:#4a4320; }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:24px 16px 64px; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    font-size:16px; line-height:1.55;
+  }
+  .wrap{max-width:900px; margin:0 auto}
+  h1{font-size:24px; margin:0 0 4px}
+  .sub{color:var(--muted); font-size:14px; margin:0 0 24px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  @media (max-width:720px){ .grid{grid-template-columns:1fr} }
+  label.fld{display:block; font-size:13px; color:var(--muted); margin:0 0 6px}
+  textarea{
+    width:100%; min-height:240px; padding:12px; border:1px solid var(--line);
+    border-radius:8px; background:var(--card); color:var(--fg);
+    font-family:inherit; font-size:15px; line-height:1.6; resize:vertical;
+  }
+  textarea:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  fieldset{
+    border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+    margin:20px 0; background:var(--card);
+  }
+  legend{font-size:13px; color:var(--muted); padding:0 6px}
+  .opts{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:6px 18px}
+  .opt{display:flex; align-items:flex-start; gap:8px; font-size:14px; cursor:pointer; padding:3px 0}
+  .opt input{margin:4px 0 0; flex:none; width:16px; height:16px; cursor:pointer}
+  .opt .n{font-size:12px; color:var(--ok); font-variant-numeric:tabular-nums}
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:14px 0}
+  button{
+    font:inherit; font-size:15px; padding:9px 18px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer;
+  }
+  button.primary{background:var(--accent); color:var(--bg); border-color:var(--accent)}
+  button:hover{opacity:.85}
+  .stats{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums}
+  .foot{margin-top:40px; padding-top:16px; border-top:1px solid var(--line);
+        font-size:13px; color:var(--muted)}
+  .foot code{background:var(--hl); padding:1px 5px; border-radius:3px; color:var(--fg)}
+  .toast{
+    position:fixed; bottom:20px; inset-inline-start:20px; background:var(--accent);
+    color:var(--bg); padding:10px 16px; border-radius:8px; font-size:14px;
+    opacity:0; transform:translateY(8px); transition:.2s; pointer-events:none;
+  }
+  .toast.show{opacity:1; transform:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>מנקה טקסט עברי</h1>
+  <p class="sub">הדבק טקסט שהועתק מ-PDF, וואטסאפ או מודל שפה. הכל רץ בדפדפן שלך — שום דבר לא נשלח לשום מקום.</p>
+
+  <div class="grid">
+    <div>
+      <label class="fld" for="in">מקור</label>
+      <textarea id="in" dir="auto" placeholder="הדבק כאן…" spellcheck="false"></textarea>
+    </div>
+    <div>
+      <label class="fld" for="out">אחרי ניקוי</label>
+      <textarea id="out" dir="auto" readonly spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="primary" id="copy">העתק תוצאה</button>
+    <button id="swap">החזר לשדה המקור</button>
+    <button id="clear">נקה הכל</button>
+    <span class="stats" id="stats"></span>
+  </div>
+
+  <fieldset>
+    <legend>פעולות ברירת מחדל</legend>
+    <div class="opts" id="optsA"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>פעולות זהירות — כבויות כברירת מחדל</legend>
+    <div class="opts" id="optsB"></div>
+  </fieldset>
+
+  <div class="foot">
+    <p><strong>מה נחשב "תו בלתי־נראה":</strong> <code>U+200B–200D</code> רווחים באפס רוחב, <code>U+200E/200F</code> סימני כיווניות, <code>U+202A–202E</code> ו-<code>U+2066–2069</code> עטיפות כיווניות, <code>U+00AD</code> מקף רך, <code>U+FEFF</code> BOM. אלה התווים שמקפיצים את הסדר של טקסט מעורב עברית־אנגלית.</p>
+    <p>רווח קשיח (<code>U+00A0</code>) מומר לרווח רגיל ולא נמחק, כדי לא להדביק מילים.</p>
+    <p>מקף עברי (מקף־מקף, <code>U+05BE</code>), גרש <code>׳</code> וגרשיים <code>״</code> עבריים <strong>לא</strong> נוגעים בהם.</p>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // כל פעולה: מזהה, תווית, האם דלוקה כברירת מחדל, ופונקציה שמחזירה [טקסט, כמה שונו]
+  var OPS = [
+    // --- ברירת מחדל ---
+    { id:"nikud", grp:"A", on:true, label:"הסרת ניקוד וטעמי מקרא",
+      run:function(t){ return sub(t, /[֑-ֽֿ-ׇׂׅׄ]/g, ""); } },
+
+    { id:"invis", grp:"A", on:true, label:"הסרת תווים בלתי־נראים",
+      run:function(t){ return sub(t, /[​‌‍‎‏‪-‮⁠-⁤⁦-⁩­﻿]/g, ""); } },
+
+    { id:"nbsp", grp:"A", on:true, label:"רווח קשיח → רווח רגיל",
+      run:function(t){ return sub(t, /[     - ]/g, " "); } },
+
+    { id:"dash", grp:"A", on:true, label:"מקף ארוך → מקף רגיל",
+      run:function(t){
+        // [ \t] ולא \s — כדי לא לבלוע שורה חדשה ולאחות שורות בטעות
+        return sub(t, /[ \t]*[–—―][ \t]*/g, function(m, off, whole){
+          // מקף בתחילת שורה הוא תבליט, לא מפריד משפט
+          if (off === 0 || whole.charAt(off - 1) === "\n") return "- ";
+          return /^[ \t]|[ \t]$/.test(m) ? " - " : "-";
+        });
+      } },
+
+    { id:"quotes", grp:"A", on:true, label:"גרשיים חכמים → ישרים",
+      run:function(t){
+        var a = sub(t, /[“”„‟«»″]/g, '"');
+        var b = sub(a[0], /[‘’‚‛′]/g, "'");
+        return [b[0], a[1] + b[1]];
+      } },
+
+    { id:"ellip", grp:"A", on:true, label:"שלוש נקודות → ...",
+      run:function(t){ return sub(t, /…/g, "..."); } },
+
+    { id:"spaces", grp:"A", on:true, label:"רווחים כפולים ורווחי סוף שורה",
+      run:function(t){
+        var a = sub(t, /[ \t]{2,}/g, " ");
+        var b = sub(a[0], /[ \t]+$/gm, "");
+        return [b[0], a[1] + b[1]];
+      } },
+
+    { id:"blank", grp:"A", on:true, label:"יותר משתי שורות ריקות ברצף",
+      run:function(t){ return sub(t, /\n{3,}/g, "\n\n"); } },
+
+    // --- זהירות ---
+    { id:"join", grp:"B", on:false, label:"איחוי שורות שבורות מ-PDF",
+      hint:"מחבר שורה שנקטעה באמצע משפט לשורה שאחריה",
+      run:function(t){
+        // עיבוד שורה-שורה ולא ביטוי רגולרי אחד — כדי לא לאחות תבליטים ורשימות
+        var isListy = function(s){ return /^[ \t]*([-*•●]|\d+[.)]|#{1,6}\s)/.test(s); };
+        var endsSentence = function(s){ return /[\s.!?:;·׃"')\]”]$/.test(s); };
+        var lines = t.split("\n");
+        var out = [];
+        var n = 0;
+        for (var i = 0; i < lines.length; i++){
+          var cur = lines[i];
+          var next = lines[i + 1];
+          var joinable =
+            cur !== "" && next !== undefined && next.trim() !== "" &&
+            !endsSentence(cur) && !isListy(cur) && !isListy(next);
+          if (joinable){
+            lines[i + 1] = cur + " " + next;
+            n++;
+          } else {
+            out.push(cur);
+          }
+        }
+        return [out.join("\n"), n];
+      } },
+
+    { id:"heb_quotes", grp:"B", on:false, label:'גרשיים ישרים → עבריים (״ ׳)',
+      hint:"רק בתוך מילה — צה״ל, ג׳ינס. ציטוטים לא נוגעים בהם",
+      run:function(t){
+        // רק ראשי תיבות: אות, גרשיים, אות אחת אחרונה (צה״ל, ס״מ, ד״ר).
+        // ו"ציטוט" לא ייתפס, כי אחרי הגרשיים באות עוד אותיות.
+        var a = sub(t, /([א-ת])"([א-ת])(?![א-ת])/g, "$1״$2");
+        // רק גרש שאחריו אות עברית (ג׳ינס, צ׳ק) — גרש סוגר של ציטוט נשאר כמו שהוא
+        var b = sub(a[0], /([א-ת])'(?=[א-ת])/g, "$1׳");
+        return [b[0], a[1] + b[1]];
+      } },
+
+    { id:"md", grp:"B", on:false, label:"הסרת סימוני Markdown",
+      hint:"כוכביות, קו תחתון, סולמיות וגרשיים אחוריים",
+      run:function(t){
+        var a = sub(t, /(\*\*|__|\*|`)/g, "");
+        var b = sub(a[0], /^#{1,6}\s+/gm, "");
+        return [b[0], a[1] + b[1]];
+      } },
+
+    { id:"bullets", grp:"B", on:false, label:"תבליטים → מקף",
+      run:function(t){ return sub(t, /^[ \t]*[•●▪◦‣⁃][ \t]*/gm, "- "); } },
+
+    { id:"trim", grp:"B", on:false, label:"הסרת שורות ריקות לגמרי",
+      run:function(t){ return sub(t, /\n[ \t]*(?=\n)/g, ""); } }
+  ];
+
+  // עוזר: מחליף וסופר כמה החלפות בוצעו.
+  // הספירה נעשית ב-match ולא בתוך פונקציית החלפה, כדי ש-$1 במחרוזת החלפה יעבוד.
+  function sub(text, re, rep){
+    var m = text.match(re);
+    var n = m ? m.length : 0;
+    return [n ? text.replace(re, rep) : text, n];
+  }
+
+  var $in = document.getElementById("in");
+  var $out = document.getElementById("out");
+  var $stats = document.getElementById("stats");
+  var $toast = document.getElementById("toast");
+  var boxes = {};
+
+  // בניית רשימת האפשרויות
+  OPS.forEach(function(op){
+    var l = document.createElement("label");
+    l.className = "opt";
+    var cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = op.on;
+    cb.addEventListener("change", run);
+    boxes[op.id] = cb;
+    var span = document.createElement("span");
+    span.textContent = op.label;
+    if (op.hint){
+      var h = document.createElement("span");
+      h.style.cssText = "display:block;font-size:12px;color:var(--muted)";
+      h.textContent = op.hint;
+      span.appendChild(h);
+    }
+    var cnt = document.createElement("span");
+    cnt.className = "n";
+    cnt.id = "n_" + op.id;
+    l.appendChild(cb); l.appendChild(span); l.appendChild(cnt);
+    document.getElementById(op.grp === "A" ? "optsA" : "optsB").appendChild(l);
+  });
+
+  function run(){
+    var t = $in.value;
+    var total = 0;
+    OPS.forEach(function(op){
+      var badge = document.getElementById("n_" + op.id);
+      if (!boxes[op.id].checked || !t){ badge.textContent = ""; return; }
+      var r = op.run(t);
+      t = r[0];
+      total += r[1];
+      badge.textContent = r[1] ? "(" + r[1] + ")" : "";
+    });
+    $out.value = t;
+
+    var src = $in.value;
+    if (!src){ $stats.textContent = ""; return; }
+    $stats.textContent =
+      src.length + " תווים → " + t.length + " תווים · " +
+      words(t) + " מילים · " + total + " שינויים";
+  }
+
+  function words(s){
+    var m = s.trim().match(/[^\s]+/g);
+    return m ? m.length : 0;
+  }
+
+  function toast(msg){
+    $toast.textContent = msg;
+    $toast.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){ $toast.classList.remove("show"); }, 1800);
+  }
+
+  $in.addEventListener("input", run);
+
+  document.getElementById("copy").addEventListener("click", function(){
+    if (!$out.value) return toast("אין מה להעתיק");
+    var done = function(){ toast("הועתק"); };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText($out.value).then(done, fallback);
+    } else { fallback(); }
+    function fallback(){
+      $out.removeAttribute("readonly");
+      $out.select();
+      try { document.execCommand("copy"); done(); }
+      catch(e){ toast("ההעתקה נכשלה — סמן והעתק ידנית"); }
+      $out.setAttribute("readonly","");
+    }
+  });
+
+  document.getElementById("swap").addEventListener("click", function(){
+    if (!$out.value) return;
+    $in.value = $out.value;
+    run();
+    toast("התוצאה הוחזרה לשדה המקור");
+  });
+
+  document.getElementById("clear").addEventListener("click", function(){
+    $in.value = ""; $out.value = "";
+    run();
+    $in.focus();
+  });
+
+  run();
+})();
+</script>
+</body>
+</html>
